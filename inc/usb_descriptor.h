@@ -1,14 +1,3 @@
-
-/*
- * USB Tutorial
- * 
- * Copyright (c) 2020 Manuel Bleichenbacher
- * Licensed under MIT License
- * https://opensource.org/licenses/MIT
- * 
- * USB descriptor
- */
-
 #ifndef USB_DESCRIPTOR_H
 #define USB_DESCRIPTOR_H
 
@@ -23,7 +12,8 @@
 #define BULK_MAX_PACKET_SIZE 64
 
 // Endpoint number for data transmission from host to device
-#define EP_DATA_OUT 0x01
+#define EP_DATA_OUT         0x01
+#define EP_DATA_IN_ISO_1    0x82
 
 // Interface index
 #define INTF_COMM 0

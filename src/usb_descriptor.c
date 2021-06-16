@@ -35,6 +35,21 @@ static const struct usb_endpoint_descriptor comm_endpoint_descs[] = {
         .extra = nullptr,
         .extralen = 0,
     },
+
+    /* This ISOCHRONUS ep (IN) is to send data to host.
+     * Used to indicate devices readiness of receiving stream
+     * Tried to make it DATA, but pyusb (used in host) throws error
+     */
+    {
+        .bLength = USB_DT_ENDPOINT_SIZE,
+        .bDescriptorType = USB_DT_ENDPOINT,
+        .bEndpointAddress = EP_DATA_IN_ISO_1, //0x82,
+        .bmAttributes = USB_ENDPOINT_ATTR_ISOCHRONOUS,
+        .wMaxPacketSize = BULK_MAX_PACKET_SIZE,
+        .bInterval = 0x01,
+        .extra = nullptr,
+        .extralen = 0,
+    },
 };
 
 static const struct usb_interface_descriptor comm_if_descs[] = {

@@ -1,7 +1,7 @@
 #include <libopencm3/stm32/rcc.h>
 #include <libopencmsis/core_cm3.h>
 #include "st7789_stm32_spi.h"
-#include "font_microsoft_16.h"
+#include "font_fixedsys_mono_24.h"
 #include "usb_descriptor.h"
 #include "common.h"
 #include <libopencm3/stm32/gpio.h>
@@ -9,14 +9,15 @@
 #include <libopencm3/usb/usbd.h>
 #include <string.h>
 
-// Minimum free space in circular buffer for requesting more packets
-#define MIN_FREE_SPACE		(2 * BULK_MAX_PACKET_SIZE)
-#define	ROW_LEN				480 /* 240 pixels x 2 byte = 480 bytes */
 
 static void usb_set_config(usbd_device *usbd_dev, uint16_t wValue);
 static void usb_data_received(usbd_device *usbd_dev, uint8_t ep);
-static enum usbd_request_return_codes do_stuff(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len, usbd_control_complete_callback *complete) ;
-static void usb_update_nak();
+static enum usbd_request_return_codes prepare_to_receive_stream(usbd_device *usbd_dev, 
+																struct usb_setup_data *req, 
+																uint8_t **buf, 
+																uint16_t *len, 
+																usbd_control_complete_callback *complete) ;
+
 void usb_init();
 
 // USB device instance
@@ -24,13 +25,6 @@ static usbd_device *usb_device;
 
 // buffer for control requests
 static uint8_t usbd_control_buffer[256];
-
-// main buffer
-static uint8_t buff[480];
-
-
-// indicates if the endpoint is forced to NAK to prevent receiving further data
-static volatile uint8_t is_forced_nak = 0;
 
 
 /* Set STM32 to 72 MHz. */
@@ -55,49 +49,20 @@ int main(void)
 	//rotating display to potrait mode
 	//st_rotate_display(1);
 
-	st_fill_screen(0x2341);
-	st_set_address_window(0, 0, 239, 239);
-	//st_draw_string(0, 0, "wallaaa", 0xffff, &font_microsoft_16);
+	// Filling the display with some color
+	st_fill_screen(ST_COLOR_NAVY);
 
+	st_draw_string_withbg(10, 200, "Tiny Monitor v1.0", ST_COLOR_CYAN, ST_COLOR_BLACK, &font_fixedsys_mono_24);
+	st_draw_string(10, 10, "Connect USB...", 0xffff, &font_fixedsys_mono_24);
+
+	// Init USB at the end so MCU can start sending data to display as soon as USB is present
 	usb_init();
 
 	while (1)
 	{
-		
+		// Nothing to do here. Everything is handled in callbacks
 	}
-	//----------------------------------------------------------
-	//rest of the user code below
-	//while (1)
-	//{
-		//		if (data_received)
-		//		{
-		//			uint16_t pixel = 0;
-		//			while(pixel < RX_BUFFER_SIZE)
-		//			{
-		//				uint16_t pixel_16bit = (uint16_t)buff_single_row[pixel] << 8 | (uint16_t)buff_single_row[pixel+1];
-		//				//write_data_16bit(pixel_16bit);
-		//				pixel += 2;
-		//			}
-		//			data_received = 0;
-		//		}//if
-
-
-
-
-		/*--- Blocking method (experimental) --*/
-		//		uint8_t pixel_msb, pixel_lsb;
-		//
-		//		while ((USART1->SR & UART_FLAG_RXNE) == RESET);
-		//		pixel_msb = USART1->DR;
-		//		WRITE_8BIT(pixel_msb);
-		//
-		//		while ((USART1->SR & UART_FLAG_RXNE) == RESET);
-		//		pixel_lsb = USART1->DR;
-		//		WRITE_8BIT(pixel_lsb);
-
-
-	//}//while
-
+	
 	return 0;
 }
 
@@ -111,9 +76,6 @@ void usb_init()
     gpio_set_mode(GPIOA, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO12);
     gpio_clear(GPIOA, GPIO12);
     delay(80);
-	// gpio_set(GPIOA, GPIO12);
-	// delay(80);
-	// gpio_clear(GPIOA, GPIO12);
 
     usb_init_serial_num();
 
@@ -136,41 +98,39 @@ void usb_init()
 // Called when the host connects to the device and selects a configuration
 void usb_set_config(usbd_device *usbd_dev, __attribute__((unused)) uint16_t wValue)
 {
-    //register_wcid_desc(usbd_dev);
     usbd_ep_setup(usbd_dev, EP_DATA_OUT, USB_ENDPOINT_ATTR_BULK, BULK_MAX_PACKET_SIZE, usb_data_received);
+	usbd_ep_setup(usbd_dev, 0x82, USB_ENDPOINT_ATTR_ISOCHRONOUS, BULK_MAX_PACKET_SIZE, nullptr);
 
-    //buffer.reset();
-    is_forced_nak = 0;
 
-	usbd_register_control_callback(usb_device, USB_REQ_TYPE_VENDOR | USB_REQ_TYPE_INTERFACE, USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT, do_stuff);
+	usbd_register_control_callback(usb_device, 
+		USB_REQ_TYPE_VENDOR | USB_REQ_TYPE_INTERFACE, 
+		USB_REQ_TYPE_TYPE | USB_REQ_TYPE_RECIPIENT, 
+		prepare_to_receive_stream);
 
-	static uint16_t c = 0xffff;
-	st_fill_rect_fast(60, 60, 30, 30, c);
-	c = c == 0xffff ? 0 : 0xffff;
-	st_set_address_window(0, 0, 239, 239);
+	st_draw_string(10, 40, "USB connected. Config is set...", 0xffff, &font_fixedsys_mono_24);
 }
 
-static enum usbd_request_return_codes do_stuff(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len, usbd_control_complete_callback *complete) 
+// Called when host sends control transfer. 
+// If host sends wValue=0x88 and bRequest=0x33, we'll prepare to receive streams
+static enum usbd_request_return_codes prepare_to_receive_stream(usbd_device *usbd_dev, struct usb_setup_data *req, uint8_t **buf, uint16_t *len, usbd_control_complete_callback *complete) 
 {
-	static uint16_t c = 0xffff;
-	if (1 == 1/* req->bRequest == 0x33 && req->wIndex == 0 */) 
+	if (req->bRequest == 0x33 && req->wIndex == 0 && req->wValue == 0x88) 
 	{
-		st_fill_rect_fast(60, 60, 30, 30, c);
-		c = c == 0xffff ? 0 : 0xffff;
+		st_draw_string(10, 100, "Connected to host software...", 0xffff, &font_fixedsys_mono_24);
+
+		// after writing string, prepare the display for drawing
+		// Once we set the address window, we can fill the screen continuously without calling it again
 		st_set_address_window(0, 0, 239, 239);
 
-		//*buf = NULL;
-		//*len = 0;
+		uint8_t ack_buff[1] = {0xAA}; //0xAA is the magic number that the python script is expecting
+		// Send host 0xAA to let know that we're ready
+		usbd_ep_write_packet(usbd_dev, 0x82, ack_buff, 1);
 
 		return USBD_REQ_HANDLED;
 	}
 	return USBD_REQ_NEXT_CALLBACK;
-
 }
 
-#define BIG_BUFF_SIZE 	BULK_MAX_PACKET_SIZE * 4
-uint8_t big_buff[BIG_BUFF_SIZE];
-uint16_t big_buff_index = 0;
 // Called when data has been received
 void usb_data_received(__attribute__((unused)) usbd_device *usbd_dev, __attribute__((unused)) uint8_t ep)
 {
@@ -181,41 +141,9 @@ void usb_data_received(__attribute__((unused)) usbd_device *usbd_dev, __attribut
 	st_fill_color_array(packet, len);
 
 	//usbd_ep_nak_set(usbd_dev, EP_DATA_OUT, 1);
-	// copy data into circular buffer
-    // for (uint8_t i = 0; i < len; i++)
-	// {
-	// 	big_buff[big_buff_index++] = packet[i];
-	// }
-	// if (big_buff_index >= BIG_BUFF_SIZE)
-	// {
-	// 	st_fill_color_array(big_buff, BIG_BUFF_SIZE);
-	// 	big_buff_index = 0;
-	// }
 	//usbd_ep_nak_set(usbd_dev, EP_DATA_OUT, 0);
-
-	//usbd_ep_nak_set(usbd_dev, EP_DATA_OUT, 1);
-	
-    
-
-    // check if there is space for less than 2 packets
-    // if (!is_forced_nak && buffer.avail_size() < MIN_FREE_SPACE)
-    // {
-    //     // set endpoint from VALID to NAK
-    //     usbd_ep_nak_set(usbd_dev, EP_DATA_OUT, 1);
-    //     is_forced_nak = 1;
-    // }
 }
 
-// Check if endpoints can be reset from NAK to VALID
-void usb_update_nak()
-{
-    // can be set from NAK to VALID if there is space for 2 more packets
-    // if (is_forced_nak && buffer.avail_size() >= MIN_FREE_SPACE)
-    // {
-    //     usbd_ep_nak_set(usb_device, EP_DATA_OUT, 0);
-    //     is_forced_nak = 0;
-    // }
-}
 
 
 // USB interrupt handler
