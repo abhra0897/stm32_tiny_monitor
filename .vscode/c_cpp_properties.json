@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "intelliSenseMode": "gcc-arm",
+            "defines": [
+                "STM32F1"
+            ],
+            "compilerPath": "/home/rik/Toolchains/gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc",
+            "includePath": [
+                "libopencm3/include",
+                ".",
+                "inc",
+                "fonts"
+            ]
+        }
+    ],
+    "version": 4
+}

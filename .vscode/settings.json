@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "ili9341_stm32_parallel8.h": "c",
+        "st7789_stm32_spi.h": "c",
+        "desig.h": "c",
+        "usbd.h": "c",
+        "usbstd.h": "c"
+    }
+}
