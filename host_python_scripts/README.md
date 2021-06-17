@@ -4,9 +4,9 @@ These are the python scripts to run on host (PC) for sending the screen data to 
 1. Slow Host
 2. Fast Host
 
-### SLow Host
+### Slow Host
 
-Slow host contains the original python script that I've written to establsih the dta a stream between host and device. This one works fine, but it's slow. Python's slowness in capturing screen and processing the captured data is causing the bottleneck. 
+Slow host contains the original python script that I've written to establsih the data stream between host and device. This one works fine, but it's slow. Python's slowness in capturing screen and processing the captured data is causing the bottleneck. 
 
 To start host,
 
