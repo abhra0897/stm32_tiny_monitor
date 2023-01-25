@@ -42,6 +42,9 @@ int main(void)
 	/* Hardware config starts */
 	clock_setup();
 	systick_init();
+
+	gpio_set_mode(GPIOC, GPIO_MODE_OUTPUT_10_MHZ, GPIO_CNF_OUTPUT_PUSHPULL, GPIO13);
+	gpio_clear(GPIOC, GPIO13);
 	/* Hardware config ends */
 
 	//----------------------------------------------------------
@@ -140,6 +143,8 @@ void usb_data_received(__attribute__((unused)) usbd_device *usbd_dev, __attribut
 
 	st_fill_color_array(packet, len);
 
+	// GPIOC_ODR ^= GPIO13;
+
 	//usbd_ep_nak_set(usbd_dev, EP_DATA_OUT, 1);
 	//usbd_ep_nak_set(usbd_dev, EP_DATA_OUT, 0);
 }
@@ -150,4 +155,5 @@ void usb_data_received(__attribute__((unused)) usbd_device *usbd_dev, __attribut
 void usb_lp_can_rx0_isr()
 {
     usbd_poll(usb_device);
+	/* GPIOC_ODR ^= GPIO13; */
 }

@@ -27,16 +27,19 @@ cpdef handle_dev_connection():
 		while dev is None:
 			dev = usb.core.find(idVendor=0xcafe, idProduct=0xceaf)
 			if dev is not None:
-				print("Device Found!!")
+				print("TinyMonitor Found!!")
 				break
 		else:
 			print("TinyMonitor Found... :)")
 
 		# set configuration (this is optional since device has only one configuration and OS automatically sets it on connection)
+		# print(dev)
 		print("Setting device configuration...")
 		dev.set_configuration()
-	except usb.core.USBError:
-		print("ERROR: USBError occured. Re-connect the device...")
+	except Exception as e:
+		print("ERROR: %s " % (str(e)))
+		print("Make sure to add the udev rule `50-usb-tinymonitor.rules` to `/etc/udev/rules.d` and reload  & restart udev.")
+		print("Also Re-connect the device")
 	
 	return dev
 
