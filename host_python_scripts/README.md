@@ -1,4 +1,35 @@
-## Host Software
+## Setup
+
+### 1. Linux:
+
+1. Install required python packages using pip:
+    - pyusb
+    - libusb
+    - mss
+2. Add the udev rule `50-usb-tinymonitor.rules` file inside `/etc/udev/rules.d/` folder.
+3. Add current user to `plugdev` using: `adduser <username> plugdev`
+4. Reload and restart udev using:
+    - `sudo udevadm control --reload`
+    - `sudo udevadm trigger`
+    - `sudo service udev reload`
+    - `sudo service udev restart`
+5. Connect the device using USB. The display should show "USB connected. Config is set..."
+6. Run the host software. You can modify the display capture area inside the python code.
+
+### 2. Windows:
+
+1. Install required python packages using pip:
+    - pyusb
+    - libusb
+    - mss
+2. Download `zadig` from https://zadig.akeo.ie/
+3. Plugin the device and run `zadig`.
+4. Select the device named "display" from the first dropdown. Make sure the USB ID shows: `CAFE` `CEAF`
+5. Select "libusb-win32" driver from the right drop down. Then click "Install Driver" button.
+6. It should take some time. After installation done, the display should show "USB connected. Config is set..."
+7. Run the host software.
+
+## Host Softwares
 
 These are the python scripts to run on host (PC) for sending the screen data to device (STM32 Tiny Monitor). There are two folders
 1. Slow Host
