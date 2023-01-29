@@ -13,6 +13,15 @@ I made this project because I'm learning USB now and this is a fun project to pr
 - STM32F103 MCU (Bluepill)
 - ST7789 SPI Display (240x240 resolution)
 
+### Pin mapping:
+
+|  ST7789  |  STM32        |
+| -------- | ------------- |
+| SDA      | PA7           |
+| SCL      | PA5           |
+| RESETn   | PA4           |
+| D/Cn     | PA2           |
+| BLK      | PA3 (unused)  |
 
 ### How to use:
 1. Compile the firmware and flash the microcontroller
